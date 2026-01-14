@@ -1,4 +1,4 @@
-# Phase 0 — Problem Definition
+# Phase 0 - Problem Definition
 
 ## What is slow?
 Listing orders (fetching all or filtered orders) becomes slow as the number of orders grows to millions. 
