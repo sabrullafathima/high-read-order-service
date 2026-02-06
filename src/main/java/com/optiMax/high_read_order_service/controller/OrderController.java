@@ -29,9 +29,9 @@ public class OrderController {
 
     @GetMapping("/orders")
     public ResponseEntity<List<OrderResponse>> getOrders(
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) Long lastId,
             @RequestParam(defaultValue = "10") int size) {
-        List<OrderResponse> response = orderService.getOrders(page, size);
+        List<OrderResponse> response = orderService.getOrders(lastId, size);
         return ResponseEntity.ok(response);
     }
 }

@@ -7,6 +7,7 @@ import com.optiMax.high_read_order_service.exception.resourceNotFoundException;
 import com.optiMax.high_read_order_service.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -41,8 +42,9 @@ public class OrderService {
         return buildOrderResponse(order);
     }
 
-    public List<OrderResponse> getOrders(int page, int size) {
-        return orderRepository.findAll(PageRequest.of(page, size, Sort.by("id")))
+    public List<OrderResponse> getOrders(Long lastId, int size) {
+        Pageable pageable = PageRequest.of(0, size, Sort.by("id"));
+        return orderRepository.findNextPage(lastId, pageable)
                 .stream()
                 .map(this::buildOrderResponse)
                 .toList();
