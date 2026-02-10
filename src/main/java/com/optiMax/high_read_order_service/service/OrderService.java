@@ -1,10 +1,13 @@
 package com.optiMax.high_read_order_service.service;
 
-import com.optiMax.high_read_order_service.dto.OrderRequest;
-import com.optiMax.high_read_order_service.dto.OrderResponse;
+import com.optiMax.high_read_order_service.dto.request.OrderRequest;
+import com.optiMax.high_read_order_service.dto.response.OrderResponse;
 import com.optiMax.high_read_order_service.entity.Order;
+import com.optiMax.high_read_order_service.entity.Product;
 import com.optiMax.high_read_order_service.exception.resourceNotFoundException;
 import com.optiMax.high_read_order_service.repository.OrderRepository;
+import com.optiMax.high_read_order_service.repository.ProductRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,14 +21,45 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
 
+    @Transactional
     public OrderResponse createOrder(OrderRequest orderRequest) {
+        Product product = productRepository.findById(orderRequest.getProductId())
+                .orElseThrow(()-> new RuntimeException("Product Not Found"));
+
+        if (product.getAvailableQuantity() <= 0) {
+            throw new RuntimeException("Out of stock");
+        }
+
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+
+        product.setAvailableQuantity(product.getAvailableQuantity() - 1);
+        productRepository.save(product);
+        
         Order order = Order.builder()
                 .customerName(orderRequest.getCustomerName())
                 .amount(orderRequest.getAmount())
+                .productId(product.getId())
                 .build();
+
         orderRepository.save(order);
-        return buildOrderResponse(order);
+        return buildOrderResponseWithProductQuantity(order, product);
+    }
+
+    private OrderResponse buildOrderResponseWithProductQuantity(Order order, Product product) {
+        return OrderResponse.builder()
+                .id(order.getId())
+                .customerName(order.getCustomerName())
+                .amount(order.getAmount())
+                .productId(order.getProductId())
+                .availableQuantity(product.getAvailableQuantity())
+                .build();
     }
 
     private OrderResponse buildOrderResponse(Order order) {
@@ -33,9 +67,9 @@ public class OrderService {
                 .id(order.getId())
                 .customerName(order.getCustomerName())
                 .amount(order.getAmount())
+                .productId(order.getProductId())
                 .build();
     }
-
     public OrderResponse getOrdersById(long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new resourceNotFoundException("Order Not Found | orderId: ", id));

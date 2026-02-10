@@ -1,7 +1,7 @@
 package com.optiMax.high_read_order_service.controller;
 
-import com.optiMax.high_read_order_service.dto.OrderRequest;
-import com.optiMax.high_read_order_service.dto.OrderResponse;
+import com.optiMax.high_read_order_service.dto.request.OrderRequest;
+import com.optiMax.high_read_order_service.dto.response.OrderResponse;
 import com.optiMax.high_read_order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -1,4 +1,4 @@
-package com.optiMax.high_read_order_service.dto;
+package com.optiMax.high_read_order_service.dto.request;
 
 import lombok.Getter;
 import lombok.Setter;
