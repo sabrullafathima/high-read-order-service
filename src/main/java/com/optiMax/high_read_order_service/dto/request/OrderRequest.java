@@ -1,14 +1,14 @@
 package com.optiMax.high_read_order_service.dto;
 
-import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 
-@Builder
 @Getter
-public class OrderResponse {
-    private Long id;
+@Setter
+public class OrderRequest {
+    private Long productId;
     private String customerName;
     private BigDecimal amount;
 }
