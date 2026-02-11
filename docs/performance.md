@@ -135,3 +135,95 @@ limit ?, ?;
 * Maintains consistently low latency, even under small loads (50–100 RPS)
 * Current queries do not exhibit N+1 problems. Future optimizations may address N+1 issues if JOINs are introduced.
 
+---
+
+# Phase 3 - Transactions & Concurrency Safety
+
+## 1. Problem Definition
+
+* In a concurrent order creation scenario, multiple users may attempt to purchase the same product at the same time.
+* Without proper concurrency control, this can lead to:
+* Race conditions
+* Incorrect stock updates
+* Overselling (double booking)
+* Partial writes (stock updated but order not created)
+
+**Goal:** Ensure data consistency and correctness when multiple concurrent requests attempt to create orders for the same product.
+
+---
+
+## 2. Initial Implementation (Without Concurrency Control)
+
+**Logic flow:**
+1. Fetch product by productId
+2. Check availableQuantity > 0
+3. Decrease quantity
+4. Save product
+5. Create and save order
+
+**Issues observed:**
+* if (availableQuantity > 0) check is **not concurrency-safe**
+* Multiple threads read the same quantity before updates occur
+* Results were inconsistent under concurrent access
+
+---
+
+## 3. Concurrency Control Applied
+
+# 3.1 Transaction Management
+
+* Added @Transactional at the service layer for order creation
+* Ensures:
+  * All DB operations (product update + order save) execute atomically
+  * Any failure rolls back the entire operation
+
+# 3.2 Optimistic Locking
+
+* Added @Version field to Product entity
+* Hibernate generates SQL similar to:
+  `UPDATE product
+   SET available_quantity = ?, version = version + 1
+   WHERE id = ? AND version = ?;`
+* Prevents concurrent updates on stale data
+* Only one thread can successfully update a product version at a time
+
+---
+
+## 4. Concurrency Testing Setup
+
+* Tool used: **Apache JMeter**
+* Same product ID used across all requests
+* Artificial delay (Thread.sleep(100ms)) added between:
+  * Quantity check
+  * Product save
+    - to force thread overlap
+* Thread counts tested: **3, 5, 10, 20**
+![img_1.png](img_1.png)
+![img_2.png](img_2.png)
+---
+
+## 5. Test Results
+
+| Available Quantity | Threads | Successful Orders | Failed Requests                    |
+| ------------------ | ------- | ----------------- | ---------------------------------- |
+| 3                  | 3       | 3                 | 0                                  |
+| 3                  | 5       | 3                 | 2 (Out of stock / optimistic lock) |
+| 3                  | 10      | 3                 | 7                                  |
+| 3                  | 20      | 3                 | 17                                 |
+
+**Observations:**
+* Stock never went below zero
+* No duplicate orders were created for the same stock unit
+* Failed requests were rejected safely
+* Optimistic locking prevented concurrent overwrites
+* Transactional boundary ensured no partial updates
+
+---
+
+## 7. Conclusion
+* Implemented safe order creation using **transactional control + optimistic locking**
+* Validated correctness using controlled multithreaded simulations
+* System now guarantees:
+  * No overselling
+  * Consistent stock updates
+  * Reliable failure handling under concurrent load
