@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,34 +23,45 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final ProductService productService;
+
+    public OrderResponse createOrder(OrderRequest request) {
+        int retries = 3;
+
+        while (retries > 0) {
+            try {
+                return createOrderWithRetry(request);
+            } catch (ObjectOptimisticLockingFailureException e) {
+                retries--;
+                if (retries == 0) {
+                    throw new RuntimeException("Too much concurrent traffic. Try again.");
+                }
+            }
+        }
+        throw new RuntimeException("Unexpected error");
+    }
 
     @Transactional
-    public OrderResponse createOrder(OrderRequest orderRequest) {
-        Product product = productRepository.findById(orderRequest.getProductId())
-                .orElseThrow(()-> new RuntimeException("Product Not Found"));
+    public OrderResponse createOrderWithRetry(OrderRequest orderRequest) {
+        Product product = productService.findProductById(orderRequest);
 
-        if (product.getAvailableQuantity() <= 0) {
-            throw new RuntimeException("Out of stock");
-        }
-
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
+        productService.isProductAvailable(product);
 
         product.setAvailableQuantity(product.getAvailableQuantity() - 1);
         productRepository.save(product);
         
-        Order order = Order.builder()
+        Order order = buildOrder(orderRequest, product);
+        orderRepository.save(order);
+
+        return buildOrderResponseWithProductQuantity(order, product);
+    }
+
+    private Order buildOrder(OrderRequest orderRequest, Product product) {
+        return Order.builder()
                 .customerName(orderRequest.getCustomerName())
                 .amount(orderRequest.getAmount())
                 .productId(product.getId())
                 .build();
-
-        orderRepository.save(order);
-        return buildOrderResponseWithProductQuantity(order, product);
     }
 
     private OrderResponse buildOrderResponseWithProductQuantity(Order order, Product product) {
@@ -70,6 +82,7 @@ public class OrderService {
                 .productId(order.getProductId())
                 .build();
     }
+
     public OrderResponse getOrdersById(long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new resourceNotFoundException("Order Not Found | orderId: ", id));
