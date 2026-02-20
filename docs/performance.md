@@ -227,3 +227,67 @@ limit ?, ?;
   * No overselling
   * Consistent stock updates
   * Reliable failure handling under concurrent load
+
+
+
+# Phase 4 - Observability & Connection Pooling
+
+## Goal
+
+Show operational readiness of the API under high concurrency with proper connection pooling and metrics monitoring.
+
+---
+
+## 1. Configure HikariCP Connection Pool
+
+* Observed default Spring Boot HikariCP pool size: 10
+* Ran load tests with 10-100 threads
+* Noted that at high concurrency (100 threads, 5–10s ramp-up), single-row contention caused failures
+* HikariCP metrics monitored using Spring Boot Actuator (`hikaricp.connections.active`, `hikaricp.connections.max`)
+![img_5.png](img_5.png)
+**Observation:** With default pool, 10 threads and 10 ramp-up worked fine. At 100 threads, active connections oscillated (1–10), no sustained saturation.
+
+---
+
+## 2. Add Spring Boot Actuator / Micrometer Metrics
+
+Monitored key metrics:
+
+* **Request latency**: avg and p95
+* **DB connections**: `hikaricp.connections.active`
+* **Error rate**: Optimistic locking conflicts
+
+**Endpoints used:**
+```
+/actuator/metrics/http.server.requests
+/actuator/metrics/hikaricp.connections.active
+```
+---
+
+## 3. Load Testing and Optimistic Lock Retry
+
+* API: POST `/order`
+* Load: 100 threads × 10 loops (≈1000 total requests)
+* Scenario: High contention on same product row
+
+**Key Observations:**
+
+| Metric                 | Without Retry | With Retry |
+| ---------------------- |---------------| ---------- |
+| Total Requests         | ~1000         | ~1000      |
+| Failed Requests (HTTP) | 4.90%         | 0          |
+| Success Rate           | 95.10%        | 100%       |
+| Concurrency Level      | 100 users     | 100 users  |
+
+# aggregate report:
+before retry logic:
+![img_4.png](img_4.png)
+
+after retry logic:
+![img_6.png](img_6.png)
+
+**Insights:**
+
+* Without retry logic, 4.90%  of requests failed due to optimistic locking conflicts under high concurrency.
+* Implementing retry logic eliminated client-visible failures (0% errors).
+* Retry improved reliability but may increase latency due to repeated transaction attempts under contention.

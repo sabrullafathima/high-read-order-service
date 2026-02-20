@@ -61,17 +61,37 @@ and concurrency validation.
 - Simulated 20-50 concurrent threads
 - Validated no lost updates or inconsistent writes
 
+### Phase 4 - Observability & Reliability Under Load
+- Integrated Spring Boot Actuator + Micrometer for latency and DB metrics
+- Conducted 100-user concurrent load testing (≈1000 total requests)
+- Observed HikariCP active connections fluctuating between 1–10 with no sustained pool saturation
+- Identified row-level contention under high concurrency
+
+## Retry Impact:
+- Without retry -> 4.90% client-visible HTTP failures
+- With optimistic-lock retry -> 0% client-visible failures
+- Improved success rate from 95.10% to 100% under 100-user concurrent load
+- Noted: increased tail latency due to internal retry attempts
+
 Detailed documentation and test results are available in the `/docs` folder
 
 ## Future Enhancements
 
 Planned next steps to further evolve this system toward production-grade readiness:
 
-- Observability: Actuator + Micrometer metrics, latency and DB monitoring
-- Connection pool tuning (HikariCP)
-- Isolation level benchmarking and failure scenario testing
-- Input validation and security hardening
-- Caching layer evaluation (Redis)
-- Containerization and optional cloud deployment
+# Phase 5 - Performance Optimization & Traffic Control
+- Implement Redis caching for read-heavy endpoints and measure latency reduction
+- Introduce API rate limiting to prevent abuse and protect the database under burst traffic
+- Benchmark performance improvements before and after caching
 
-These enhancements focus on operational readiness, scalability, and production observability.
+# Phase 6 - Security & Hardening
+- Input validation using DTO constraints (Bean Validation)
+- Standardized global exception handling
+- Configure database user with least privilege
+- API error response standardization
+
+# Phase 7 - Scalability & Deployment
+- Read-replica strategy discussion
+- Isolation level benchmarking
+- Horizontal scaling considerations (stateless service design)
+- Containerization (Docker) and optional cloud deployment
