@@ -1,6 +1,7 @@
 package com.optiMax.high_read_order_service.service;
 
 import com.optiMax.high_read_order_service.dto.request.OrderRequest;
+import com.optiMax.high_read_order_service.dto.response.CursorPageOrderResponse;
 import com.optiMax.high_read_order_service.dto.response.OrderResponse;
 import com.optiMax.high_read_order_service.entity.Order;
 import com.optiMax.high_read_order_service.entity.Product;
@@ -9,9 +10,6 @@ import com.optiMax.high_read_order_service.repository.OrderRepository;
 import com.optiMax.high_read_order_service.repository.ProductRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
@@ -89,11 +87,39 @@ public class OrderService {
         return buildOrderResponse(order);
     }
 
-    public List<OrderResponse> getOrders(Long lastId, int size) {
-        Pageable pageable = PageRequest.of(0, size, Sort.by("id"));
-        return orderRepository.findNextPage(lastId, pageable)
-                .stream()
+    public CursorPageOrderResponse<OrderResponse> getOrders(Long lastId, int size) {
+        int limit = size + 1;
+        List<Order> orders;
+
+        if (lastId == null) {
+            orders = orderRepository.findFirstPage(limit);
+        } else {
+            orders = orderRepository.findNextPage(lastId, limit);
+        }
+
+        boolean hasNext = orders.size() > size;
+
+        if (hasNext) {
+            orders = orders.subList(0, size);
+        }
+
+        List<OrderResponse> data = buildData(orders);
+
+        Long nextCursor = findNextCursor(data);
+
+        return new CursorPageOrderResponse<>(data, nextCursor, hasNext);
+
+    }
+
+    private List<OrderResponse> buildData(List<Order> orders) {
+        return orders.stream()
                 .map(this::buildOrderResponse)
                 .toList();
+    }
+
+    private Long findNextCursor(List<OrderResponse> data) {
+        return data.isEmpty()
+                ? null
+                : data.getLast().getId();
     }
 }

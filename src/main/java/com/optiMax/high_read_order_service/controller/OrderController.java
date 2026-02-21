@@ -1,6 +1,7 @@
 package com.optiMax.high_read_order_service.controller;
 
 import com.optiMax.high_read_order_service.dto.request.OrderRequest;
+import com.optiMax.high_read_order_service.dto.response.CursorPageOrderResponse;
 import com.optiMax.high_read_order_service.dto.response.OrderResponse;
 import com.optiMax.high_read_order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +29,11 @@ public class OrderController {
     }
 
     @GetMapping("/orders")
-    public ResponseEntity<List<OrderResponse>> getOrders(
+    public ResponseEntity<CursorPageOrderResponse<OrderResponse>> getOrders(
             @RequestParam(required = false) Long lastId,
             @RequestParam(defaultValue = "10") int size) {
-        List<OrderResponse> response = orderService.getOrders(lastId, size);
+        CursorPageOrderResponse<OrderResponse> response = orderService.getOrders(lastId, size);
+
         return ResponseEntity.ok(response);
     }
 }

@@ -17,4 +17,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             order by o.id
             """)
     List<Order> findNextPage(@Param("lastId") Long lastId, Pageable pageable);
+
+    @Query(value = "SELECT * FROM `orders` ORDER BY id ASC LIMIT :limit", nativeQuery = true)
+    List<Order> findFirstPage(@Param("limit") int limit);
+
+    @Query(value = "SELECT * FROM `orders` WHERE id > :lastId ORDER BY id ASC LIMIT :limit", nativeQuery = true)
+    List<Order> findNextPage(@Param("lastId") Long lastId,
+                             @Param("limit") int limit);
 }
